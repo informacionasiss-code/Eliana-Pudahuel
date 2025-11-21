@@ -786,7 +786,9 @@ const ShiftModal = ({
   const shiftProducts = useMemo(() => {
     if (!activeShift) return [];
 
-    const shiftSales = sales.filter((sale) => sale.shiftId === activeShift.id && sale.type === "sale");
+    const shiftSales = (sales ?? [])
+      .filter((sale): sale is Sale => Boolean(sale))
+      .filter((sale) => sale.shiftId === activeShift.id && sale.type === "sale");
     const productMap = new Map<string, { name: string; quantity: number; total: number }>();
 
     shiftSales.forEach((sale) => {
