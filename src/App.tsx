@@ -3321,16 +3321,22 @@ const App = () => {
               </Button>
             ) : (
               <Button
-                size="xs"
-                variant="light"
-                color="teal"
+                size="sm"
+                variant="gradient"
+                gradient={{ from: "teal", to: "cyan", deg: 135 }}
+                radius="md"
+                leftSection={<Clock3 size={16} />}
                 onClick={() => {
                   setShiftModalMode("open");
                   shiftModalHandlers.open();
                 }}
-                style={{ background: "rgba(255,255,255,0.18)", color: "white" }}
+                style={{
+                  boxShadow: "0 12px 30px rgba(12, 186, 186, 0.35)",
+                  color: "white",
+                  fontWeight: 700
+                }}
               >
-                Abrir
+                Abrir turno
               </Button>
             )}
             <ActionIcon
