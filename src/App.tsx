@@ -32,7 +32,7 @@ import {
 } from "@mantine/core";
 import { Notifications, notifications } from "@mantine/notifications";
 import { useDisclosure, useMediaQuery } from "@mantine/hooks";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bar,
@@ -231,6 +231,47 @@ const safeParseJson = <T,>(value: unknown, fallback: T): T => {
 };
 
 const getSaleItems = (sale: Sale): SaleItem[] => (Array.isArray(sale.items) ? sale.items : []);
+
+class ErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error("Error capturado por ErrorBoundary:", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: "2rem", textAlign: "center" }}>
+          <h2>Algo salió mal</h2>
+          <p>Recarga la página para intentar de nuevo.</p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              padding: "0.75rem 1.25rem",
+              background: "linear-gradient(135deg, #0ea5e9, #22c55e)",
+              color: "white",
+              border: "none",
+              borderRadius: "0.75rem",
+              cursor: "pointer",
+              fontWeight: 700
+            }}
+          >
+            Recargar
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const mapProductRow = (row: any): Product => ({
   id: row.id,
@@ -2058,7 +2099,7 @@ const LowStockModal = ({ opened, onClose, products }: LowStockModalProps) => {
   );
 };
 
-const App = () => {
+const AppContent = () => {
   const queryClient = useQueryClient();
   const isMobile = useMediaQuery("(max-width: 768px)");
   const { colorScheme, setColorScheme } = useMantineColorScheme();
@@ -5960,4 +6001,10 @@ const ShiftsView = ({ activeShift, summary, history, sales, products }: ShiftsVi
   );
 };
 
-export default App;
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
+  );
+}
