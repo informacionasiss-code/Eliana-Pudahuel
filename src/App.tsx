@@ -230,6 +230,8 @@ const safeParseJson = <T,>(value: unknown, fallback: T): T => {
   }
 };
 
+const getSaleItems = (sale: Sale): SaleItem[] => (Array.isArray(sale.items) ? sale.items : []);
+
 const mapProductRow = (row: any): Product => ({
   id: row.id,
   name: row.name,
@@ -788,7 +790,7 @@ const ShiftModal = ({
     const productMap = new Map<string, { name: string; quantity: number; total: number }>();
 
     shiftSales.forEach((sale) => {
-      sale.items.forEach((item) => {
+      getSaleItems(sale).forEach((item) => {
         const existing = productMap.get(item.productId);
         if (existing) {
           existing.quantity += item.quantity;
@@ -2205,7 +2207,7 @@ const App = () => {
     const salesMap = new Map<string, number>();
     sales.forEach((sale) => {
       if (sale.type === "sale") {
-        sale.items.forEach((item) => {
+        getSaleItems(sale).forEach((item) => {
           const current = salesMap.get(item.productId) || 0;
           salesMap.set(item.productId, current + item.quantity);
         });
@@ -2939,7 +2941,7 @@ const App = () => {
   const handleRegisterReturn = async () => {
     const sale = sales.find((item) => item.id === returnSaleId);
     if (!sale) return;
-    const items = sale.items
+    const items = getSaleItems(sale)
       .map((item) => ({
         ...item,
         quantity: Math.min(item.quantity, returnItems[item.id] ?? 0)
@@ -3175,7 +3177,7 @@ const App = () => {
     );
     const productMap = new Map<string, { id: string; name: string; total: number; quantity: number }>();
     filteredSalesForReports.forEach((sale) => {
-      sale.items.forEach((item) => {
+      getSaleItems(sale).forEach((item) => {
         const target = productMap.get(item.productId) ?? { id: item.productId, name: item.name, total: 0, quantity: 0 };
         target.total += item.price * item.quantity;
         target.quantity += item.quantity;
@@ -4654,7 +4656,7 @@ const DashboardView = ({
   const topProducts = useMemo(() => {
     const productSales = new Map<string, { name: string; quantity: number; revenue: number }>();
     salesOnly.forEach((sale) => {
-      sale.items.forEach((item) => {
+      getSaleItems(sale).forEach((item) => {
         const existing = productSales.get(item.productId) || { name: item.name, quantity: 0, revenue: 0 };
         productSales.set(item.productId, {
           name: item.name,
@@ -5469,7 +5471,7 @@ const ShiftsView = ({ activeShift, summary, history, sales, products }: ShiftsVi
     const productMap = new Map<string, { name: string; quantity: number; total: number }>();
 
     shiftSales.forEach((sale) => {
-      sale.items.forEach((item) => {
+      getSaleItems(sale).forEach((item) => {
         const existing = productMap.get(item.productId);
         if (existing) {
           existing.quantity += item.quantity;
