@@ -2294,7 +2294,7 @@ const AppContent = () => {
 
   const lowStockProducts = useMemo(() => products.filter((product) => product.stock <= product.minStock), [products]);
 
-  const autoCompleteData = useMemo(() => products.map((product) => product.name), [products]);
+  const autoCompleteData = useMemo(() => Array.from(new Set(products.map((product) => product.name))).sort(), [products]);
 
   const guardTabChange = (tab: TabId) => {
     const target = TABS.find((item) => item.id === tab);
