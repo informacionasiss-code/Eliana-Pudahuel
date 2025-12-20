@@ -395,6 +395,8 @@ async function fetchClients(): Promise<Client[]> {
     return FALLBACK_CLIENTS;
   }
 
+  console.log("📊 Clientes cargados:", clientsData?.length, clientsData?.map(c => ({ id: c.id, name: c.name })));
+
   // Then fetch all movements
   const { data: movementsData, error: movementsError } = await supabase
     .from("pudahuel_client_movements")
@@ -404,6 +406,8 @@ async function fetchClients(): Promise<Client[]> {
   if (movementsError) {
     console.warn("Fallo al cargar movimientos de clientes", movementsError.message);
   }
+
+  console.log("📦 Movimientos cargados:", movementsData?.length, movementsData?.slice(0, 5));
 
   // Map movements by client_id
   const movementsByClient = new Map<string, ClientMovement[]>();
@@ -424,14 +428,20 @@ async function fetchClients(): Promise<Client[]> {
     movementsByClient.get(clientId)!.push(movement);
   });
 
+  console.log("🗂️ Movimientos agrupados por cliente:", Array.from(movementsByClient.entries()).map(([id, mvs]) => ({ clientId: id, count: mvs.length })));
+
   // Combine clients with their movements
-  return (clientsData ?? []).map((row: any) => {
+  const result = (clientsData ?? []).map((row: any) => {
     const client = mapClientRow(row);
+    const history = movementsByClient.get(client.id) ?? [];
+    console.log(`👤 Cliente ${client.name} (ID: ${client.id}): ${history.length} movimientos`);
     return {
       ...client,
-      history: movementsByClient.get(client.id) ?? []
+      history
     };
   });
+
+  return result;
 }
 
 async function fetchSales(): Promise<Sale[]> {
