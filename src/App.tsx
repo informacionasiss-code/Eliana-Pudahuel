@@ -384,34 +384,54 @@ async function fetchProducts(): Promise<Product[]> {
 }
 
 async function fetchClients(): Promise<Client[]> {
-  // Fetch clients with their movements using a join
-  const { data, error } = await supabase
+  // First fetch clients
+  const { data: clientsData, error: clientsError } = await supabase
     .from("pudahuel_clients")
-    .select(`
-      id, name, authorized, balance, "limit", updated_at,
-      pudahuel_client_movements (
-        id, client_id, amount, type, description, created_at, balance_after
-      )
-    `)
+    .select('id, name, authorized, balance, "limit", updated_at')
     .order("name", { ascending: true });
 
-  if (error) {
-    console.warn("Fallo al cargar clientes, usando datos locales", error.message);
+  if (clientsError) {
+    console.warn("Fallo al cargar clientes, usando datos locales", clientsError.message);
     return FALLBACK_CLIENTS;
   }
 
-  return (data ?? []).map((row: any) => ({
-    ...mapClientRow(row),
-    history: (row.pudahuel_client_movements ?? []).map((m: any) => ({
+  // Then fetch all movements
+  const { data: movementsData, error: movementsError } = await supabase
+    .from("pudahuel_client_movements")
+    .select("id, client_id, amount, type, description, created_at, balance_after")
+    .order("created_at", { ascending: false });
+
+  if (movementsError) {
+    console.warn("Fallo al cargar movimientos de clientes", movementsError.message);
+  }
+
+  // Map movements by client_id
+  const movementsByClient = new Map<string, ClientMovement[]>();
+  (movementsData ?? []).forEach((m: any) => {
+    const clientId = m.client_id?.toString?.() ?? String(m.client_id);
+    const movement: ClientMovement = {
       id: m.id?.toString?.() ?? String(m.id),
-      client_id: m.client_id?.toString?.() ?? String(m.client_id),
+      client_id: clientId,
       amount: toNumber(m.amount),
       type: m.type as "abono" | "pago-total" | "fiado",
       description: m.description ?? "",
       created_at: m.created_at,
       balance_after: toNumber(m.balance_after)
-    }))
-  }));
+    };
+    if (!movementsByClient.has(clientId)) {
+      movementsByClient.set(clientId, []);
+    }
+    movementsByClient.get(clientId)!.push(movement);
+  });
+
+  // Combine clients with their movements
+  return (clientsData ?? []).map((row: any) => {
+    const client = mapClientRow(row);
+    return {
+      ...client,
+      history: movementsByClient.get(client.id) ?? []
+    };
+  });
 }
 
 async function fetchSales(): Promise<Sale[]> {
