@@ -395,33 +395,37 @@ async function fetchClients(): Promise<Client[]> {
     return FALLBACK_CLIENTS;
   }
 
-  console.log("📊 Clientes cargados:", clientsData?.length, clientsData?.map(c => ({ id: c.id, name: c.name })));
+  console.log("📊 Clientes cargados:", clientsData?.length);
 
-  // Then fetch all movements
-  const { data: movementsData, error: movementsError } = await supabase
-    .from("pudahuel_client_movements")
-    .select("id, client_id, amount, type, description, created_at, balance_after")
+  // Fetch fiado sales from pudahuel_sales (where payment_method = 'fiado')
+  const { data: fiadoSales, error: salesError } = await supabase
+    .from("pudahuel_sales")
+    .select("id, ticket, total, created_at, notes")
+    .eq("payment_method", "fiado")
     .order("created_at", { ascending: false });
 
-  if (movementsError) {
-    console.warn("Fallo al cargar movimientos de clientes", movementsError.message);
+  if (salesError) {
+    console.warn("Fallo al cargar ventas fiado", salesError.message);
   }
 
-  console.log("📦 Movimientos cargados:", movementsData?.length, movementsData?.slice(0, 5));
+  console.log("📦 Ventas fiado cargadas:", fiadoSales?.length, fiadoSales?.slice(0, 3));
 
-  // Map movements by client_id
+  // Map fiado sales by client_id (from notes.clientId)
   const movementsByClient = new Map<string, ClientMovement[]>();
-  (movementsData ?? []).forEach((m: any) => {
-    const clientId = m.client_id?.toString?.() ?? String(m.client_id);
+  (fiadoSales ?? []).forEach((sale: any) => {
+    const clientId = sale.notes?.clientId?.toString?.() ?? String(sale.notes?.clientId ?? "");
+    if (!clientId) return;
+
     const movement: ClientMovement = {
-      id: m.id?.toString?.() ?? String(m.id),
+      id: sale.id?.toString?.() ?? String(sale.id),
       client_id: clientId,
-      amount: toNumber(m.amount),
-      type: m.type as "abono" | "pago-total" | "fiado",
-      description: m.description ?? "",
-      created_at: m.created_at,
-      balance_after: toNumber(m.balance_after)
+      amount: toNumber(sale.total),
+      type: "fiado" as const,
+      description: `Compra ticket #${sale.ticket ?? sale.id}`,
+      created_at: sale.created_at,
+      balance_after: 0 // We don't have this info in sales
     };
+
     if (!movementsByClient.has(clientId)) {
       movementsByClient.set(clientId, []);
     }
@@ -2924,14 +2928,7 @@ const AppContent = () => {
           .from("pudahuel_clients")
           .update({ balance: newBalance })
           .eq("id", client.id);
-        await supabase.from("pudahuel_client_movements").insert({
-          client_id: client.id,
-          amount: cartTotals.total,
-          type: "fiado",
-          description: `Compra ticket #${data?.ticket ?? "sin-ticket"}`,
-          balance_after: newBalance,
-          created_at: timestamp
-        });
+        // Note: fiado history is now obtained from pudahuel_sales (where payment_method='fiado')
       }
     }
 
