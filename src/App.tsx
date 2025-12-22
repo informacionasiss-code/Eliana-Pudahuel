@@ -409,8 +409,7 @@ async function fetchClients(): Promise<Client[]> {
     const clientId = sale.notes?.clientId?.toString?.() ?? String(sale.notes?.clientId ?? "");
     if (!clientId) return;
 
-    let amount = toNumber(sale.total);
-    if (clientId === "1") amount = Math.round(amount * 0.4);
+    const amount = toNumber(sale.total);
 
     const movement: ClientMovement = {
       id: sale.id?.toString?.() ?? String(sale.id),
@@ -431,11 +430,8 @@ async function fetchClients(): Promise<Client[]> {
   const result = (clientsData ?? []).map((row: any) => {
     const client = mapClientRow(row);
     const history = movementsByClient.get(client.id) ?? [];
-    let balance = client.balance;
-    if (client.id === "1") balance = Math.round(balance * 0.4);
     return {
       ...client,
-      balance,
       history
     };
   });

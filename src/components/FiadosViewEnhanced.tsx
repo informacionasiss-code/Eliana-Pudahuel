@@ -209,39 +209,63 @@ export const FiadosViewEnhanced = ({
     return (
         <>
             <Stack gap="xl">
-                {/* KPI Cards */}
-                <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md">
-                    <Paper withBorder radius="lg" p="md" style={{ background: "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(147,197,253,0.18))" }}>
+                {/* KPI Cards - Enhanced */}
+                <SimpleGrid cols={{ base: 1, sm: 2, lg: 5 }} spacing="md">
+                    <Paper withBorder radius="lg" p="md" style={{ background: "linear-gradient(135deg, rgba(254,226,226,0.4), rgba(252,165,165,0.25))" }}>
                         <Stack gap={4}>
                             <Group gap="xs">
-                                <ThemeIcon color="indigo" variant="light">
-                                    <UsersRound size={18} />
+                                <ThemeIcon color="red" variant="light">
+                                    <PiggyBank size={18} />
                                 </ThemeIcon>
-                                <Text size="sm" c="dimmed">Clientes autorizados</Text>
+                                <Text size="sm" c="dimmed">Deuda Total</Text>
                             </Group>
-                            <Text fw={700} fz="xl">{authorizedCount}</Text>
+                            <Text fw={800} fz="xl" c="red.7">{formatCurrency(totalDebt)}</Text>
+                            <Text size="xs" c="dimmed">{topDebtors.length} clientes con deuda</Text>
                         </Stack>
                     </Paper>
-                    <Paper withBorder radius="lg" p="md" style={{ background: "linear-gradient(135deg, rgba(248,113,113,0.12), rgba(251,191,36,0.18))" }}>
+                    <Paper withBorder radius="lg" p="md" style={{ background: "linear-gradient(135deg, rgba(219,234,254,0.4), rgba(147,197,253,0.25))" }}>
                         <Stack gap={4}>
                             <Group gap="xs">
-                                <ThemeIcon color="orange" variant="light">
-                                    <AlertTriangle size={18} />
+                                <ThemeIcon color="blue" variant="light">
+                                    <TrendingUp size={18} />
                                 </ThemeIcon>
-                                <Text size="sm" c="dimmed">Clientes bloqueados</Text>
+                                <Text size="sm" c="dimmed">Promedio Deuda</Text>
                             </Group>
-                            <Text fw={700} fz="xl">{blockedCount}</Text>
+                            <Text fw={700} fz="xl" c="blue.7">
+                                {formatCurrency(topDebtors.length > 0 ? totalDebt / topDebtors.length : 0)}
+                            </Text>
+                            <Text size="xs" c="dimmed">Por cliente con deuda</Text>
                         </Stack>
                     </Paper>
-                    <Paper withBorder radius="lg" p="md" style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.12), rgba(45,212,191,0.18))" }}>
+                    <Paper withBorder radius="lg" p="md" style={{ background: "linear-gradient(135deg, rgba(220,252,231,0.4), rgba(134,239,172,0.25))" }}>
                         <Stack gap={4}>
                             <Group gap="xs">
                                 <ThemeIcon color="teal" variant="light">
-                                    <PiggyBank size={18} />
+                                    <UsersRound size={18} />
                                 </ThemeIcon>
-                                <Text size="sm" c="dimmed">Deuda total</Text>
+                                <Text size="sm" c="dimmed">Clientes</Text>
                             </Group>
-                            <Text fw={700} fz="xl">{formatCurrency(totalDebt)}</Text>
+                            <Group gap="xs" align="baseline">
+                                <Text fw={700} fz="xl" c="teal.7">{authorizedCount}</Text>
+                                <Text size="sm" c="dimmed">/ {clients.length}</Text>
+                            </Group>
+                            <Text size="xs" c="dimmed">{blockedCount} bloqueados</Text>
+                        </Stack>
+                    </Paper>
+                    <Paper withBorder radius="lg" p="md" style={{ background: "linear-gradient(135deg, rgba(254,243,199,0.4), rgba(253,224,71,0.25))" }}>
+                        <Stack gap={4}>
+                            <Group gap="xs">
+                                <ThemeIcon color="yellow" variant="light">
+                                    <AlertTriangle size={18} />
+                                </ThemeIcon>
+                                <Text size="sm" c="dimmed">Uso de Crédito</Text>
+                            </Group>
+                            <Text fw={700} fz="xl" c="yellow.7">
+                                {clients.reduce((s, c) => s + c.limit, 0) > 0
+                                    ? ((totalDebt / clients.reduce((s, c) => s + c.limit, 0)) * 100).toFixed(1)
+                                    : 0}%
+                            </Text>
+                            <Text size="xs" c="dimmed">Del límite total disponible</Text>
                         </Stack>
                     </Paper>
                     <Paper withBorder radius="lg" p="md" style={{ background: "linear-gradient(135deg, rgba(139,92,246,0.12), rgba(196,181,253,0.18))" }}>
@@ -250,13 +274,14 @@ export const FiadosViewEnhanced = ({
                                 <ThemeIcon color="violet" variant="light">
                                     <Calendar size={18} />
                                 </ThemeIcon>
-                                <Text size="sm" c="dimmed">Por modalidad</Text>
+                                <Text size="sm" c="dimmed">Por Modalidad</Text>
                             </Group>
                             <Group gap="xs">
-                                <Badge variant="light" color="teal" size="sm">{scheduleStats.immediate} inm.</Badge>
-                                <Badge variant="light" color="violet" size="sm">{scheduleStats.biweekly} quin.</Badge>
-                                <Badge variant="light" color="indigo" size="sm">{scheduleStats.monthly} mes</Badge>
+                                <Badge variant="filled" color="teal" size="sm">{scheduleStats.immediate}</Badge>
+                                <Badge variant="filled" color="violet" size="sm">{scheduleStats.biweekly}</Badge>
+                                <Badge variant="filled" color="indigo" size="sm">{scheduleStats.monthly}</Badge>
                             </Group>
+                            <Text size="xs" c="dimmed">inm. / quin. / mes</Text>
                         </Stack>
                     </Paper>
                 </SimpleGrid>
