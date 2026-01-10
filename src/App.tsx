@@ -116,6 +116,7 @@ import { FALLBACK_CLIENTS, FALLBACK_PRODUCTS, FALLBACK_SALES, FALLBACK_SHIFTS } 
 import { formatCurrency, formatDate, formatDateTime, formatTime } from "./utils/format";
 import { generateClientReport, generateSummaryReport } from "./utils/pdfGenerator";
 import { FiadosViewEnhanced } from "./components/FiadosViewEnhanced";
+import { QuickStockModal } from "./components/QuickStockModal";
 
 dayjs.extend(relativeTime);
 dayjs.locale("es");
@@ -2229,6 +2230,7 @@ const AppContent = () => {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const { colorScheme, setColorScheme } = useMantineColorScheme();
 
+  const [quickStockModalOpen, setQuickStockModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("dashboard");
   const [userRole, setUserRole] = useState<Role | null>(null);
   const [pendingTab, setPendingTab] = useState<TabId | null>(null);
@@ -4371,6 +4373,7 @@ const AppContent = () => {
                   setSelectedProductForDelete(product);
                   deleteProductModalHandlers.open();
                 }}
+                onQuickStock={() => setQuickStockModalOpen(true)}
               />
             )}
             {activeTab === "fiados" && (
@@ -4595,6 +4598,13 @@ const AppContent = () => {
         onConfirm={handleAddStock}
       />
 
+      <QuickStockModal
+        opened={quickStockModalOpen}
+        onClose={() => setQuickStockModalOpen(false)}
+        products={products}
+        onStockUpdate={() => productQuery.refetch()}
+      />
+
       <EditProductModal
         opened={editProductModalOpened}
         onClose={() => {
@@ -4655,6 +4665,7 @@ interface InventoryViewProps {
   onAddStock: (productId: string) => void;
   onEditProduct: (product: Product) => void;
   onDeleteProduct: (product: Product) => void;
+  onQuickStock: () => void;
 }
 
 const InventoryView = ({
@@ -4669,7 +4680,8 @@ const InventoryView = ({
   onNewProduct,
   onAddStock,
   onEditProduct,
-  onDeleteProduct
+  onDeleteProduct,
+  onQuickStock
 }: InventoryViewProps) => {
   const categories = useMemo(() => Array.from(new Set(products.map((p) => p.category))).sort(), [products]);
 
@@ -4826,6 +4838,14 @@ const InventoryView = ({
               >
                 Nuevo Producto
               </Button>
+              <Button
+                variant="gradient"
+                gradient={{ from: "orange", to: "red" }}
+                leftSection={<Package size={18} />}
+                onClick={onQuickStock}
+              >
+                Stock Rápido
+              </Button>
               <Button variant="light" color="indigo" leftSection={<RefreshCcw size={18} />} onClick={onRefresh}>
                 Sincronizar
               </Button>
@@ -4872,149 +4892,151 @@ const InventoryView = ({
             </Grid.Col>
           </Grid>
         </Stack>
-      </Card>
+      </Card >
 
       {/* Vista de tarjetas de productos */}
-      {filteredProducts.length === 0 ? (
-        <Card withBorder radius="lg" p="xl">
-          <Text ta="center" c="dimmed" size="lg">
-            No se encontraron productos
-          </Text>
-        </Card>
-      ) : (
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md">
-          {filteredProducts.map((product) => {
-            let statusColor = "teal";
-            let statusLabel = "Normal";
+      {
+        filteredProducts.length === 0 ? (
+          <Card withBorder radius="lg" p="xl">
+            <Text ta="center" c="dimmed" size="lg">
+              No se encontraron productos
+            </Text>
+          </Card>
+        ) : (
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md">
+            {filteredProducts.map((product) => {
+              let statusColor = "teal";
+              let statusLabel = "Normal";
 
-            if (product.stock === 0) {
-              statusColor = "red";
-              statusLabel = "BAJO STOCK";
-            } else if (product.stock <= product.minStock) {
-              statusColor = "orange";
-              statusLabel = "BAJO STOCK";
-            }
+              if (product.stock === 0) {
+                statusColor = "red";
+                statusLabel = "BAJO STOCK";
+              } else if (product.stock <= product.minStock) {
+                statusColor = "orange";
+                statusLabel = "BAJO STOCK";
+              }
 
-            return (
-              <Card
-                key={product.id}
-                withBorder
-                radius="lg"
-                shadow="sm"
-                p="md"
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  height: "100%",
-                  minHeight: "280px"
-                }}
-              >
-                <Stack gap="xs" style={{ flex: 1 }}>
-                  {/* Nombre del producto - altura fija */}
-                  <Text
-                    fw={600}
-                    size="lg"
-                    style={{
-                      minHeight: "48px",
-                      maxHeight: "48px",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                      lineHeight: "24px"
-                    }}
-                  >
-                    {product.name}
-                  </Text>
-
-                  {/* Categoría */}
-                  <Badge variant="light" color="indigo" size="sm">
-                    {product.category}
-                  </Badge>
-
-                  <Divider />
-
-                  {/* Precio destacado */}
-                  <Group justify="space-between" align="center">
-                    <Text size="xs" c="dimmed" fw={600}>
-                      PRECIO
+              return (
+                <Card
+                  key={product.id}
+                  withBorder
+                  radius="lg"
+                  shadow="sm"
+                  p="md"
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    height: "100%",
+                    minHeight: "280px"
+                  }}
+                >
+                  <Stack gap="xs" style={{ flex: 1 }}>
+                    {/* Nombre del producto - altura fija */}
+                    <Text
+                      fw={600}
+                      size="lg"
+                      style={{
+                        minHeight: "48px",
+                        maxHeight: "48px",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        display: "-webkit-box",
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: "vertical",
+                        lineHeight: "24px"
+                      }}
+                    >
+                      {product.name}
                     </Text>
-                    <Text fw={700} size="xl" c="blue">
-                      {formatCurrency(product.price)}
-                    </Text>
-                  </Group>
 
-                  {/* Stock */}
-                  <Group justify="space-between">
-                    <Text size="sm" c="dimmed">
-                      Stock actual: <Text span fw={600}>{product.stock}</Text>
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                      Mínimo: <Text span fw={600}>{product.minStock}</Text>
-                    </Text>
-                  </Group>
-
-                  {/* Barra de progreso de stock */}
-                  <Progress
-                    value={product.minStock > 0 ? Math.min((product.stock / (product.minStock * 2)) * 100, 100) : 100}
-                    color={product.stock === 0 ? "red" : product.stock <= product.minStock ? "orange" : "teal"}
-                    size="sm"
-                    radius="xl"
-                  />
-
-                  {/* Código de barras */}
-                  <Text size="xs" c="dimmed">
-                    {product.barcode ? `SKU: ${product.barcode}` : "Sin código asignado"}
-                  </Text>
-
-                  {/* Badge de estado */}
-                  {(product.stock === 0 || product.stock <= product.minStock) && (
-                    <Badge color={statusColor} variant="filled" fullWidth size="md">
-                      {statusLabel}
+                    {/* Categoría */}
+                    <Badge variant="light" color="indigo" size="sm">
+                      {product.category}
                     </Badge>
-                  )}
 
-                  {/* Spacer para empujar botones al final */}
-                  <div style={{ flex: 1 }} />
+                    <Divider />
 
-                  {/* Botones de acción */}
-                  <Group gap="xs" grow>
-                    <Button
-                      variant="light"
-                      color="teal"
+                    {/* Precio destacado */}
+                    <Group justify="space-between" align="center">
+                      <Text size="xs" c="dimmed" fw={600}>
+                        PRECIO
+                      </Text>
+                      <Text fw={700} size="xl" c="blue">
+                        {formatCurrency(product.price)}
+                      </Text>
+                    </Group>
+
+                    {/* Stock */}
+                    <Group justify="space-between">
+                      <Text size="sm" c="dimmed">
+                        Stock actual: <Text span fw={600}>{product.stock}</Text>
+                      </Text>
+                      <Text size="sm" c="dimmed">
+                        Mínimo: <Text span fw={600}>{product.minStock}</Text>
+                      </Text>
+                    </Group>
+
+                    {/* Barra de progreso de stock */}
+                    <Progress
+                      value={product.minStock > 0 ? Math.min((product.stock / (product.minStock * 2)) * 100, 100) : 100}
+                      color={product.stock === 0 ? "red" : product.stock <= product.minStock ? "orange" : "teal"}
                       size="sm"
-                      leftSection={<Plus size={16} />}
-                      onClick={() => onAddStock(product.id)}
-                    >
-                      Stock
-                    </Button>
-                    <Button
-                      variant="light"
-                      color="indigo"
-                      size="sm"
-                      leftSection={<Edit size={16} />}
-                      onClick={() => onEditProduct(product)}
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      variant="light"
-                      color="red"
-                      size="sm"
-                      leftSection={<Trash2 size={16} />}
-                      onClick={() => onDeleteProduct(product)}
-                    >
-                      Eliminar
-                    </Button>
-                  </Group>
-                </Stack>
-              </Card>
-            );
-          })}
-        </SimpleGrid>
-      )}
-    </Stack>
+                      radius="xl"
+                    />
+
+                    {/* Código de barras */}
+                    <Text size="xs" c="dimmed">
+                      {product.barcode ? `SKU: ${product.barcode}` : "Sin código asignado"}
+                    </Text>
+
+                    {/* Badge de estado */}
+                    {(product.stock === 0 || product.stock <= product.minStock) && (
+                      <Badge color={statusColor} variant="filled" fullWidth size="md">
+                        {statusLabel}
+                      </Badge>
+                    )}
+
+                    {/* Spacer para empujar botones al final */}
+                    <div style={{ flex: 1 }} />
+
+                    {/* Botones de acción */}
+                    <Group gap="xs" grow>
+                      <Button
+                        variant="light"
+                        color="teal"
+                        size="sm"
+                        leftSection={<Plus size={16} />}
+                        onClick={() => onAddStock(product.id)}
+                      >
+                        Stock
+                      </Button>
+                      <Button
+                        variant="light"
+                        color="indigo"
+                        size="sm"
+                        leftSection={<Edit size={16} />}
+                        onClick={() => onEditProduct(product)}
+                      >
+                        Editar
+                      </Button>
+                      <Button
+                        variant="light"
+                        color="red"
+                        size="sm"
+                        leftSection={<Trash2 size={16} />}
+                        onClick={() => onDeleteProduct(product)}
+                      >
+                        Eliminar
+                      </Button>
+                    </Group>
+                  </Stack>
+                </Card>
+              );
+            })}
+          </SimpleGrid>
+        )
+      }
+    </Stack >
   );
 };
 
