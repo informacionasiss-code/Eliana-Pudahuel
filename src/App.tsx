@@ -4838,14 +4838,7 @@ const InventoryView = ({
               >
                 Nuevo Producto
               </Button>
-              <Button
-                variant="gradient"
-                gradient={{ from: "orange", to: "red" }}
-                leftSection={<Package size={18} />}
-                onClick={onQuickStock}
-              >
-                Stock Rápido
-              </Button>
+
               <Button variant="light" color="indigo" leftSection={<RefreshCcw size={18} />} onClick={onRefresh}>
                 Sincronizar
               </Button>
