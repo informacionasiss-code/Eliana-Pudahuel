@@ -4142,6 +4142,17 @@ const AppContent = () => {
                           <Group justify="space-between">
                             <Title order={4}>Carrito de venta</Title>
                             <Group gap="xs">
+                              <Tooltip label="Stock Rápido">
+                                <ActionIcon
+                                  variant="light"
+                                  color="orange"
+                                  size="lg"
+                                  radius="md"
+                                  onClick={() => setQuickStockModalOpen(true)}
+                                >
+                                  <Package size={20} />
+                                </ActionIcon>
+                              </Tooltip>
                               <Tooltip label={customerDisplay ? "Cerrar vista cliente" : "Mostrar al cliente"}>
                                 <ActionIcon
                                   variant="light"
