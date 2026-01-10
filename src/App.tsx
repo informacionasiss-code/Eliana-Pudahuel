@@ -123,8 +123,7 @@ dayjs.locale("es");
 // Sistema de roles y contraseñas
 type Role = "admin" | "manager";
 
-const ADMIN_PASSWORD = "eliana152100"; // Acceso completo
-const MANAGER_PASSWORD = "selena1521"; // Solo dashboard, POS, inventario
+const ADMIN_PASSWORD = "Romeo2026"; // Acceso completo
 
 type TabId = "dashboard" | "pos" | "inventory" | "fiados" | "reports" | "shifts";
 
@@ -773,14 +772,7 @@ const PasswordModal = ({ opened, onClose, onUnlock }: PasswordModalProps) => {
       });
       onUnlock("admin");
       onClose();
-    } else if (password === MANAGER_PASSWORD) {
-      notifications.show({
-        title: "Acceso administrativo concedido",
-        message: "Acceso a Dashboard, Punto de venta e Inventario.",
-        color: "blue"
-      });
-      onUnlock("manager");
-      onClose();
+
     } else {
       setError("Contraseña incorrecta. Inténtalo nuevamente.");
       notifications.show({
