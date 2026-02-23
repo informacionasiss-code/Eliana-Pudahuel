@@ -2257,6 +2257,7 @@ const AppContent = () => {
   const [selectedPayment, setSelectedPayment] = useState<PaymentMethod>("cash");
   const [cashReceived, setCashReceived] = useState<number | undefined>(undefined);
   const [selectedFiadoClient, setSelectedFiadoClient] = useState<string | null>(null);
+  const [isCompletingSale, setIsCompletingSale] = useState(false);
   const [customerDisplay, setCustomerDisplay] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -2338,6 +2339,10 @@ const AppContent = () => {
   const sales = salesQuery.data ?? [];
   const shifts = shiftsQuery.data ?? [];
   const authorizedFiadoClients = useMemo(() => clients.filter((client) => client.authorized), [clients]);
+  const selectedFiadoClientData = useMemo(
+    () => clients.find((client) => client.id === selectedFiadoClient) ?? null,
+    [clients, selectedFiadoClient]
+  );
   const activeShift = useMemo(() => shifts.find((shift) => shift.status === "open"), [shifts]);
   const shiftSummary = useMemo(() => computeShiftSummary(sales, activeShift?.id ?? null), [sales, activeShift]);
 
@@ -2853,100 +2858,124 @@ const AppContent = () => {
   };
 
   const handleCompleteSale = async () => {
+    if (isCompletingSale) return;
     if (!validateSale()) return;
+    setIsCompletingSale(true);
 
-    const timestamp = new Date().toISOString();
-    const saleItems: SaleItem[] = cartDetailed.map((item) => ({
-      id: generateId(),
-      productId: item.product.id,
-      name: item.product.name,
-      price: item.product.price,
-      quantity: item.quantity
-    }));
+    try {
+      const timestamp = new Date().toISOString();
+      const saleItems: SaleItem[] = cartDetailed.map((item) => ({
+        id: generateId(),
+        productId: item.product.id,
+        name: item.product.name,
+        price: item.product.price,
+        quantity: item.quantity
+      }));
 
-    const cashValue =
-      selectedPayment === "cash" && typeof cashReceived === "number" && Number.isFinite(cashReceived)
-        ? cashReceived
-        : null;
+      const cashValue =
+        selectedPayment === "cash" && typeof cashReceived === "number" && Number.isFinite(cashReceived)
+          ? cashReceived
+          : null;
 
-    // ============================================
-    // DESCUENTO INTERNO - NO VISIBLE EN LA UI
-    // ============================================
-    // Aplicar descuento del 60% para Isaac Avila en fiados
-    // El monto mostrado en pantalla es el original (ej: 10,000)
-    // Pero el monto guardado es el descuento (ej: 4,000)
-    const seller = activeShift?.seller ?? "Mostrador";
-    let finalTotal = cartTotals.total;
+      // ============================================
+      // DESCUENTO INTERNO - NO VISIBLE EN LA UI
+      // ============================================
+      // Aplicar descuento del 60% para Isaac Avila en fiados
+      // El monto mostrado en pantalla es el original (ej: 10,000)
+      // Pero el monto guardado es el descuento (ej: 4,000)
+      const seller = activeShift?.seller ?? "Mostrador";
+      let finalTotal = cartTotals.total;
 
-    if (selectedPayment === "fiado") {
-      finalTotal = applyInternalDiscount(seller, cartTotals.total);
-      // El descuento se aplicó internamente, NO se muestra en la UI
-    }
-    // ============================================
-
-    const payload = {
-      type: "sale",
-      total: finalTotal,
-      payment_method: selectedPayment,
-      cash_received: cashValue,
-      change_amount: cashValue !== null ? cartTotals.change : null,
-      shift_id: activeShift?.id ?? null,
-      seller,
-      created_at: timestamp,
-      items: saleItems,
-      notes: selectedPayment === "fiado" ? { clientId: selectedFiadoClient } : null
-    };
-
-    const { data, error } = await supabase
-      .from("pudahuel_sales")
-      .insert(payload)
-      .select("ticket")
-      .single();
-
-    if (error) {
-      notifications.show({
-        title: "Error al registrar la venta",
-        message: error.message,
-        color: "red"
-      });
-      return;
-    }
-
-    await Promise.all(
-      saleItems.map((item) =>
-        supabase
-          .from("pudahuel_products")
-          .update({ stock: (productMap.get(item.productId)?.stock ?? 0) - item.quantity })
-          .eq("id", item.productId)
-      )
-    );
-
-    if (selectedPayment === "fiado" && selectedFiadoClient) {
-      const client = clients.find((item) => item.id === selectedFiadoClient);
-      if (client) {
-        const newBalance = client.balance + cartTotals.total;
-        await supabase
-          .from("pudahuel_clients")
-          .update({ balance: newBalance })
-          .eq("id", client.id);
-        // Note: fiado history is now obtained from pudahuel_sales (where payment_method='fiado')
+      if (selectedPayment === "fiado") {
+        finalTotal = applyInternalDiscount(seller, cartTotals.total);
+        // El descuento se aplicó internamente, NO se muestra en la UI
       }
+      // ============================================
+
+      const payload = {
+        type: "sale",
+        total: finalTotal,
+        payment_method: selectedPayment,
+        cash_received: cashValue,
+        change_amount: cashValue !== null ? cartTotals.change : null,
+        shift_id: activeShift?.id ?? null,
+        client_id: selectedPayment === "fiado" && selectedFiadoClient ? selectedFiadoClient : null,
+        seller,
+        created_at: timestamp,
+        items: saleItems,
+        notes: selectedPayment === "fiado" ? { clientId: selectedFiadoClient } : null
+      };
+
+      const { data, error } = await supabase
+        .from("pudahuel_sales")
+        .insert(payload)
+        .select("ticket")
+        .single();
+
+      if (error) {
+        notifications.show({
+          title: "Error al registrar la venta",
+          message: error.message,
+          color: "red"
+        });
+        return;
+      }
+
+      await Promise.all(
+        saleItems.map((item) =>
+          supabase
+            .from("pudahuel_products")
+            .update({ stock: (productMap.get(item.productId)?.stock ?? 0) - item.quantity })
+            .eq("id", item.productId)
+        )
+      );
+
+      if (selectedPayment === "fiado" && selectedFiadoClient) {
+        const client = clients.find((item) => item.id === selectedFiadoClient);
+        if (client) {
+          const expectedBalance = client.balance + cartTotals.total;
+          const { data: currentClient, error: currentClientError } = await supabase
+            .from("pudahuel_clients")
+            .select("balance")
+            .eq("id", client.id)
+            .single();
+
+          if (currentClientError) {
+            console.warn("No se pudo verificar balance actual del cliente", currentClientError.message);
+          } else {
+            const currentBalance = toNumber(currentClient?.balance);
+            if (currentBalance < expectedBalance) {
+              const { error: updateBalanceError } = await supabase
+                .from("pudahuel_clients")
+                .update({ balance: expectedBalance })
+                .eq("id", client.id);
+
+              if (updateBalanceError) {
+                console.warn("No se pudo actualizar el balance del cliente", updateBalanceError.message);
+              }
+            }
+          }
+          // Note: fiado history is now obtained from pudahuel_sales (where payment_method='fiado')
+        }
+      }
+
+      notifications.show({
+        title: "Venta registrada",
+        message: data?.ticket ? `Ticket #${data.ticket} generado correctamente.` : "Venta registrada correctamente.",
+        color: "teal"
+      });
+
+      setCart([]);
+      setCashReceived(undefined);
+      setSelectedFiadoClient(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["products"] }),
+        queryClient.invalidateQueries({ queryKey: ["sales"] }),
+        queryClient.invalidateQueries({ queryKey: ["clients"] })
+      ]);
+    } finally {
+      setIsCompletingSale(false);
     }
-
-    notifications.show({
-      title: "Venta registrada",
-      message: data?.ticket ? `Ticket #${data.ticket} generado correctamente.` : "Venta registrada correctamente.",
-      color: "teal"
-    });
-
-    setCart([]);
-    setCashReceived(undefined);
-    setSelectedFiadoClient(null);
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["products"] }),
-      queryClient.invalidateQueries({ queryKey: ["sales"] }),
-      queryClient.invalidateQueries({ queryKey: ["clients"] })
-    ]);
   };
 
   const handleOpenShift = async ({ seller, type, initialCash }: { seller: string; type: ShiftType; initialCash: number }) => {
@@ -4299,16 +4328,38 @@ const AppContent = () => {
                               )}
                             </Stack>
                             {selectedPayment === "fiado" && (
-                              <Select
-                                label="Cliente autorizado"
-                                placeholder="Selecciona un cliente"
-                                data={authorizedFiadoClients.map((client) => ({
-                                  value: client.id,
-                                  label: `${client.name} • ${formatCurrency(client.balance)}`
-                                }))}
-                                value={selectedFiadoClient}
-                                onChange={(value) => setSelectedFiadoClient(value)}
-                              />
+                              <>
+                                <Select
+                                  label="Cliente autorizado"
+                                  placeholder="Selecciona un cliente"
+                                  data={authorizedFiadoClients.map((client) => ({
+                                    value: client.id,
+                                    label: `${client.name} • ${formatCurrency(client.balance)}`
+                                  }))}
+                                  value={selectedFiadoClient}
+                                  onChange={(value) => setSelectedFiadoClient(value)}
+                                />
+                                {selectedFiadoClientData && (
+                                  <Paper withBorder p="sm" radius="md">
+                                    <Stack gap={4}>
+                                      <Group justify="space-between">
+                                        <Text size="sm" c="dimmed">Deuda actual</Text>
+                                        <Text size="sm" fw={600}>{formatCurrency(selectedFiadoClientData.balance)}</Text>
+                                      </Group>
+                                      <Group justify="space-between">
+                                        <Text size="sm" c="dimmed">Compra actual</Text>
+                                        <Text size="sm" fw={600}>{formatCurrency(cartTotals.total)}</Text>
+                                      </Group>
+                                      <Group justify="space-between">
+                                        <Text size="sm" fw={700}>Deuda proyectada</Text>
+                                        <Text size="sm" fw={700} c="red.7">
+                                          {formatCurrency(selectedFiadoClientData.balance + cartTotals.total)}
+                                        </Text>
+                                      </Group>
+                                    </Stack>
+                                  </Paper>
+                                )}
+                              </>
                             )}
                             {selectedPayment === "cash" && (
                               <NumberInput
@@ -4352,7 +4403,8 @@ const AppContent = () => {
                               <Button
                                 leftSection={<Receipt size={18} />}
                                 onClick={handleCompleteSale}
-                                disabled={cartDetailed.length === 0}
+                                disabled={cartDetailed.length === 0 || isCompletingSale}
+                                loading={isCompletingSale}
                                 fullWidth
                               >
                                 Cobrar y generar ticket
